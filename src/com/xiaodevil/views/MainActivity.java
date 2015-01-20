@@ -5,17 +5,14 @@
  */
 package com.xiaodevil.views;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
-import android.database.Cursor;
-import android.net.Uri;
+import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.os.Handler;
-import android.provider.ContactsContract;
 import android.support.v4.view.MenuItemCompat;
+import android.support.v4.view.MenuItemCompat.OnActionExpandListener;
 import android.support.v7.app.ActionBarActivity;
 import android.support.v7.widget.SearchView;
 import android.support.v7.widget.SearchView.OnQueryTextListener;
@@ -38,14 +35,12 @@ public class MainActivity extends ActionBarActivity {
 	private ContactAdapter adapter;
 	private List<User> users;
 	private SearchView searchview;
-
-	
+    private SharedPreferences preferences;
+    private SharedPreferences.Editor editor;
 	
 	private Intent intent = new Intent();
 	private User selectedUser = new User();
 	private final static String TAG = "com.xiaodevil.views.MainActivity";
-	private Cursor cursor;
-	private Handler handler = new Handler();
 	public final static String SER_KEY = "com.xiaode.user";
 	
 	
@@ -54,9 +49,11 @@ public class MainActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Log.i(TAG,"MainActivity start");
-
+        initPreferences();
         setupViews();
-       
+        
+   
+        
      
         contactsListView.setOnItemClickListener(new OnItemClickListener()
 		{
@@ -74,12 +71,12 @@ public class MainActivity extends ActionBarActivity {
 		});
         
     }
+    
     @SuppressLint("NewApi")
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
-    	getMenuInflater().inflate(R.menu.main, menu);
-    	
+    	getMenuInflater().inflate(R.menu.main, menu);    	
     	MenuItem searchItem = menu.findItem(R.id.action_search);
     	searchview = (SearchView)MenuItemCompat.getActionView(searchItem);
 		return super.onCreateOptionsMenu(menu);
@@ -92,14 +89,14 @@ public class MainActivity extends ActionBarActivity {
 		// as you specify a parent activity in AndroidManifest.xml.
 		int id = item.getItemId();
 		if (id == R.id.action_add) {
-			//Toast.makeText(getApplicationContext(), "action_settings",Toast.LENGTH_SHORT).show();
 			intent.setClass(MainActivity.this, AddNewContactsActivity.class);
 			startActivity(intent);
 			return true;
 			
 		}
 		if (id == R.id.action_settings) {
-			Toast.makeText(getApplicationContext(), "action_settings",Toast.LENGTH_SHORT).show();
+			intent.setClass(MainActivity.this, SettingsActivity.class);
+			startActivity(intent);
 			return true;
 			
 		}
@@ -108,21 +105,35 @@ public class MainActivity extends ActionBarActivity {
 			return true;
 		}
 		if (id == R.id.action_search) {
-			//Toast.makeText(getApplicationContext(), "action_about",Toast.LENGTH_SHORT).show();
 			searchview.setIconified(false);
 			searchview.setSubmitButtonEnabled(true);
 			searchview.setOnQueryTextListener(new OnQueryTextListener() {
 				
 				@Override
 				public boolean onQueryTextSubmit(String s) {
-					Toast.makeText(getApplicationContext(), s, Toast.LENGTH_SHORT).show();
 					return false;
 				}
 				
 				@Override
 				public boolean onQueryTextChange(String s) {
+					adapter.getFilter().filter(s);
+					return true;
+				}
+			});
+			
+			MenuItemCompat.setOnActionExpandListener(item, new OnActionExpandListener() {
+				
+				@Override
+				public boolean onMenuItemActionExpand(MenuItem arg0) {
 					
-					return false;
+					return true;
+				}
+				
+				@Override
+				public boolean onMenuItemActionCollapse(MenuItem arg0) {
+						//Toast.makeText(getApplicationContext(), "over", Toast.LENGTH_SHORT).show();
+						adapter.getFilter().filter("");
+					return true;
 				}
 			});
 			return true;
@@ -130,38 +141,21 @@ public class MainActivity extends ActionBarActivity {
 		
 		return super.onOptionsItemSelected(item);
 	}
-    
+	
+    @Override
+	public void onBackPressed(){
+    	Intent intent = new Intent();
+    	intent.setAction(Intent.ACTION_MAIN);
+    	intent.addCategory(Intent.CATEGORY_HOME);
+    	startActivity(intent);
+    } 
     /**
      * 
      * 
      */
-    public void setupViews(){
-    	contactsListView = (IndexableListView) findViewById(R.id.contancts_list);  	
-    	
-    	
-//    	Uri uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI;
-//    	cursor = getContentResolver().query(uri, 
-//    			new String[]{"display_name","sort_key","data1"}, 
-//    			null, 
-//    			null, 
-//    			"sort_key");    	
-//    	if(cursor.moveToFirst()){
-//    		do{
-//    			String name = cursor.getString(0);
-//    			String sortKey = getSortKey(cursor.getString(cursor.getColumnIndex("sort_key")));
-//    			String phoneNumber = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
-//    			User user = new User();
-//    			user.setUserName(name);
-//    			user.setSortKey(sortKey);
-//    			//user.setPhoneNumber(phoneNumber);
-//    			users.add(user);
-//    		}while(cursor.moveToNext());
-//    		startManagingCursor(cursor);
-//
-//
-//
-//    		
-//    	}
+    private void setupViews(){
+    	contactsListView = (IndexableListView) findViewById(R.id.contancts_list); 
+    	//DataHelper.getInstance().setAvatar(getApplicationContext());
     	users = DataHelper.getInstance().queryContact(getApplicationContext());
     	adapter = new ContactAdapter(this, R.layout.contact_item, users);
 		if(users.size() > 0){
@@ -173,8 +167,7 @@ public class MainActivity extends ActionBarActivity {
      * 
      * 
      */
-    private void setupContactsListView(){
-    	
+    private void setupContactsListView(){    	
     	contactsListView.setAdapter(adapter);
     	contactsListView.setFastScrollEnabled(true); 	
     }
@@ -185,18 +178,14 @@ public class MainActivity extends ActionBarActivity {
      *@return
      *
      */
-    private String getSortKey(String sortKeyString){
-    	String key = sortKeyString.substring(0,1).toUpperCase();
 
-    	if(key.matches("[A-Z]")){
-    		
-    		return key;
-    	}
-    	return "#";
-    }
-    private void searchContacts(String s){
-    	
-    }
+
+
     
-	
+	private  void initPreferences(){	
+        preferences = getSharedPreferences("settings",MODE_PRIVATE);
+        editor=preferences.edit();
+        editor.putString("readType", "letter");
+        editor.commit();
+	}
 }
