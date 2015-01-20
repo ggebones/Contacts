@@ -5,10 +5,11 @@ import java.util.List;
 import java.util.Random;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.Filter;
 import android.widget.Filterable;
@@ -16,10 +17,10 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.SectionIndexer;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.xiaodevil.contacts.R;
 import com.xiaodevil.models.User;
+import com.xiaodevil.views.SettingsActivity;
 
 public class ContactAdapter extends BaseAdapter implements SectionIndexer,Filterable{
 		
@@ -30,11 +31,15 @@ public class ContactAdapter extends BaseAdapter implements SectionIndexer,Filter
 	private ArrayList<User> mOriginalValues;
 	private ContactFilter mFilter;
 	private final Object mLock = new Object();
-	private Context context;
+	private Context context;	
+	private SharedPreferences preferences;
+	private final String TAG = "com.xiaodevil.utils.ContactAdapter";
+	
 	public ContactAdapter(Context context,int resourceid, List<User> list){
 		mObjects = list;
 		this.context = context;
 		this.resourceId = resourceid;
+		preferences = this.context.getSharedPreferences(SettingsActivity.KEY_SETTINGS, Context.MODE_PRIVATE);
 	}
 
 	@Override
@@ -55,10 +60,15 @@ public class ContactAdapter extends BaseAdapter implements SectionIndexer,Filter
 		avatar_bg.setBackgroundColor(android.graphics.Color.parseColor(color[index]));
 		
 		name.setText(user.getUserName());
-		
-		
-		//avatar.setText(user.getSortKey());
-		avatar.setText(user.getUserName().substring(0,1));
+		if(preferences.getString(SettingsActivity.KEY_READTYPE,SettingsActivity.KEY_LETTER).equals("letter"))
+		{
+			
+			avatar.setText(user.getSortKey());
+		}
+		if(preferences.getString(SettingsActivity.KEY_READTYPE,SettingsActivity.KEY_HANZI).equals("hanzi"))
+		{
+			avatar.setText(user.getUserName().substring(0,1));
+		}
 		return layout;
 	}
 
